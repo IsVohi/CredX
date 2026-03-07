@@ -1,0 +1,189 @@
+// Credential Controller
+
+const ipfsService = require('../services/ipfsService');
+const blockchainService = require('../services/blockchainService');
+const metadataBuilder = require('../utils/metadataBuilder');
+const axios = require('axios');
+
+/**
+ * Issue a new Credential
+ * POST /credentials/issue
+ */
+exports.issueCredential = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Credential document file is required.' });
+        }
+
+        const {
+            studentWallet,
+            studentName,
+            credentialTitle,
+            programName,
+            issueDate,
+            expiryDate,
+        } = req.body;
+
+        if (!studentWallet || !studentName || !credentialTitle) {
+            return res.status(400).json({ error: 'Missing required fields: studentWallet, studentName, or credentialTitle.' });
+        }
+
+        // 1. Upload credential document to IPFS
+        const documentUploadResult = await ipfsService.uploadDocument(req.file.buffer, req.file.originalname);
+
+        // Use a dummy IPFS hash for image representation (ARC-3 expects an image)
+        const imageCid = documentUploadResult.cid;
+
+        // Use authenticated issuer data
+        const issuerName = req.user?.name || "CredX Verified Institution";
+        const issuerWallet = req.user?.address || "ISSUER_PLACEHOLDER_ADDRESS";
+
+        // 2. Build ARC-3 JSON Metadata
+        const metadataObject = metadataBuilder.buildARC3Metadata({
+            name: credentialTitle,
+            description: `${credentialTitle} - Issued by ${issuerName}`,
+            imageCid: imageCid,
+            issuer_wallet: issuerWallet,
+            student_wallet: studentWallet,
+            student_name: studentName,
+            program_name: programName,
+            issued_timestamp: issueDate,
+            expiry_timestamp: expiryDate,
+            credential_status: 'ACTIVE',
+            ipfs_document_cid: documentUploadResult.cid
+        });
+
+        // 3. Upload ARC-3 Metadata JSON to IPFS
+        const metadataUploadResult = await ipfsService.uploadMetadata(metadataObject);
+
+        // 4. Call Blockchain Service to Mint NFT
+        // Using the metadata CID as both URI extension and hash seed.
+        // In full production, a true SHA256 of the JSON bytes should be sent.
+        const mintResult = await blockchainService.mintCredentialNFT(studentWallet, metadataUploadResult.cid);
+
+        const metadataCid = metadataUploadResult.cid;
+        const documentCid = documentUploadResult.cid;
+
+        res.status(201).json({
+            message: 'Credential successfully issued.',
+            assetId: mintResult.assetId,
+            transactionId: mintResult.txId,
+            metadataCid,
+            documentCid
+        });
+
+    } catch (error) {
+        console.error('Issue Credential Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Get Credential Details
+ * GET /credentials/:assetId
+ */
+exports.getCredential = async (req, res) => {
+    try {
+        const assetId = parseInt(req.params.assetId, 10);
+        if (isNaN(assetId)) {
+            return res.status(400).json({ error: 'Invalid assetId provided.' });
+        }
+
+        // Fetch on-chain data
+        const credentialOnChain = await blockchainService.getCredential(assetId);
+
+        let metadata = null;
+        let documentUrl = null;
+
+        // Optionally, parse the IPFS URI to fetch the JSON metadata
+        if (credentialOnChain.url && credentialOnChain.url.startsWith('ipfs://')) {
+            const cid = credentialOnChain.url.split('ipfs://')[1];
+            try {
+                // Determine gateway
+                const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
+                const response = await axios.get(`${gateway}${cid}`);
+                metadata = response.data;
+                documentUrl = metadata.properties && metadata.properties.ipfsDocument
+                    ? metadata.properties.ipfsDocument.replace('ipfs://', gateway) : null;
+            } catch (ipfsError) {
+                console.warn('Failed to fetch metadata from IPFS directly during getCredential', ipfsError.message);
+            }
+        }
+
+        res.status(200).json({
+            assetId,
+            onChainStatus: credentialOnChain.statusStr,
+            creator: credentialOnChain.creator,
+            metadata,
+            documentUrl
+        });
+
+    } catch (error) {
+        console.error('Get Credential Error:', error);
+        if (error.message.includes('404')) {
+            return res.status(404).json({ error: `Credential with ID ${req.params.assetId} not found on the blockchain.` });
+        }
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Revoke a Credential
+ * POST /credentials/:assetId/revoke
+ */
+exports.revokeCredential = async (req, res) => {
+    try {
+        const assetId = parseInt(req.params.assetId, 10);
+        if (isNaN(assetId)) {
+            return res.status(400).json({ error: 'Invalid assetId provided.' });
+        }
+
+        const result = await blockchainService.revokeCredential(assetId);
+
+        res.status(200).json({
+            message: 'Credential successfully revoked.',
+            assetId,
+            transactionId: result.txId
+        });
+
+    } catch (error) {
+        console.error('Revoke Credential Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Public Verification of Credential
+ * GET /credentials/:assetId/verify
+ */
+exports.verifyCredential = async (req, res) => {
+    try {
+        const assetId = parseInt(req.params.assetId, 10);
+        if (isNaN(assetId)) {
+            return res.status(400).json({ error: 'Invalid assetId provided.' });
+        }
+
+        // In a real application, you would pass the expected metadata hash to the blockchain verification function
+        // to assert the NFT constraints securely on the smart contract side.
+        // For standard public API checks, verifyCredential relies on the Box states
+        const verificationResult = await blockchainService.verifyCredential(assetId);
+
+        res.status(200).json({
+            verified: verificationResult.isValid,
+            status: verificationResult.isValid ? 'VALID' : 'INVALID',
+            details: {
+                assetId: verificationResult.assetData.assetId,
+                onchainStatus: verificationResult.assetData.statusStr,
+                creator: verificationResult.assetData.creator
+            }
+        });
+
+    } catch (error) {
+        console.error('Verify Credential Error:', error);
+        res.status(500).json({
+            verified: false,
+            status: 'ERROR',
+            error: error.message
+        });
+    }
+};
