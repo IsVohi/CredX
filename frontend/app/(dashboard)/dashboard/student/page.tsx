@@ -151,7 +151,7 @@ export default function StudentDashboard() {
     };
 
     const handleShareProfile = () => {
-        const url = `${typeof window !== "undefined" ? window.location.origin : ""}/verify`;
+        const url = `${typeof window !== "undefined" ? window.location.origin : ""}/verify?address=${data.address}`;
         navigator.clipboard.writeText(url);
         setIsSharing(true);
         setTimeout(() => setIsSharing(false), 2000);

@@ -31,9 +31,11 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
                     },
                     (decodedText) => {
                         onScan(decodedText);
-                        html5QrCode.stop().catch(() => {});
+                        if (html5QrCode.getState() === 2) { // 2 = SCANNING
+                            html5QrCode.stop().catch(() => { });
+                        }
                     },
-                    () => {}
+                    () => { }
                 );
             } catch (err: any) {
                 setError(err?.message || "Failed to access camera. Use HTTPS or paste the code below.");
@@ -44,7 +46,9 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
 
         startScanner();
         return () => {
-            scannerRef.current?.stop().catch(() => {});
+            if (scannerRef.current?.getState() === 2) {
+                scannerRef.current.stop().catch((e: any) => console.log("Scanner stop error:", e));
+            }
         };
     }, [onScan]);
 

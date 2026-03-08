@@ -185,3 +185,26 @@ exports.verifyCredential = async (req, res) => {
         });
     }
 };
+
+/**
+ * Public lookup of student credentials by wallet address
+ * GET /credentials/student/:address
+ */
+exports.getPublicStudentCredentialsByAddress = async (req, res) => {
+    try {
+        const { address } = req.params;
+        if (!address) {
+            return res.status(400).json({ error: 'Wallet address is required.' });
+        }
+
+        const credentials = await blockchainService.getStudentCredentials(address);
+
+        res.status(200).json({
+            address,
+            credentials
+        });
+    } catch (error) {
+        console.error('Public Student Lookup Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};

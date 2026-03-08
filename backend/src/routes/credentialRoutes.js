@@ -24,4 +24,8 @@ router.post('/:assetId/revoke', verifyIssuerRole, credentialController.revokeCre
 // Public endpoint that verifies a credential exists, issuer is verified, status is ACTIVE, metadata is valid
 router.get('/:assetId/verify', credentialController.verifyCredential);
 
+// GET /credentials/student/:address
+// Public lookup of all credentials for a specific student
+router.get('/student/:address', credentialController.getPublicStudentCredentialsByAddress);
+
 module.exports = router;

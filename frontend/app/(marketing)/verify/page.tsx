@@ -44,8 +44,10 @@ function VerificationContent() {
     }, []);
 
     const [assetId, setAssetId] = useState(searchParams.get("assetId") || "");
+    const [lookupAddress, setLookupAddress] = useState(searchParams.get("address") || "");
     const [isVerifying, setIsVerifying] = useState(false);
     const [result, setResult] = useState<any>(null);
+    const [addressResult, setAddressResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
 
@@ -67,6 +69,7 @@ function VerificationContent() {
         setIsVerifying(true);
         setError(null);
         setResult(null);
+        setAddressResult(null);
 
         const { data: verifyData, error: verifyError } = await api.get(`/credentials/${id}/verify`);
 
@@ -89,11 +92,32 @@ function VerificationContent() {
         setIsVerifying(false);
     };
 
+    const handleAddressLookup = async (address: string) => {
+        if (!address) return;
+        setIsVerifying(true);
+        setError(null);
+        setResult(null);
+        setAddressResult(null);
+
+        const { data, error: apiError } = await api.get(`/credentials/student/${address}`);
+
+        if (apiError) {
+            setError(apiError);
+        } else {
+            setAddressResult(data);
+        }
+        setIsVerifying(false);
+    };
+
     useEffect(() => {
         const id = searchParams.get("assetId");
+        const addr = searchParams.get("address");
         if (id) {
             setAssetId(id);
             handleVerify(id);
+        } else if (addr) {
+            setLookupAddress(addr);
+            handleAddressLookup(addr);
         }
     }, [searchParams]);
 
@@ -173,90 +197,89 @@ function VerificationContent() {
                     </motion.div>
                 )}
 
-                {result && (
+                {addressResult && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-8"
                     >
-                        {/* Result Banner */}
-                        <div className={`glass p-8 rounded-[2.5rem] border-2 text-center shadow-lg ${result.status === 'VALID'
-                            ? 'border-emerald-200 bg-emerald-50/50'
-                            : 'border-amber-200 bg-amber-50/50'
-                            }`}>
-                            {result.status === 'VALID' ? (
-                                <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                            ) : (
-                                <ShieldAlert className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-                            )}
-                            <h2 className="text-3xl font-extrabold text-slate-900 font-display mb-1 underline decoration-emerald-500/30 underline-offset-8">
-                                STATUS: {result.status}
-                            </h2>
-                            <p className="text-slate-600 font-medium">Verified by CredX Smart Contract Consensus</p>
+                        {/* Student Profile Banner */}
+                        <div className="glass p-10 rounded-[2.5rem] bg-slate-900 border border-slate-800 text-white relative overflow-hidden">
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+                                        <GraduationCap size={32} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold font-display">Student Verification Profile</h2>
+                                        <div className="flex items-center gap-2 text-slate-400 font-mono text-xs mt-1">
+                                            <ShieldCheck size={14} className="text-primary" />
+                                            {addressResult.address}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-slate-400 text-sm max-w-xl">
+                                    This profile contains all academic credentials cryptographically linked to this Algorand wallet address.
+                                </p>
+                            </div>
+                            {/* Decoration */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
                         </div>
 
-                        {/* Credential Details */}
-                        {result.status === 'VALID' && (
-                            <div className="glass p-10 rounded-[2.5rem] bg-white border border-slate-200/60 shadow-xl overflow-hidden relative">
-                                <div className="absolute top-0 right-0 p-8">
-                                    <div className="w-20 h-20 rounded-3xl bg-indigo-50 text-indigo-500 flex items-center justify-center shadow-inner">
-                                        <GraduationCap size={40} />
-                                    </div>
-                                </div>
-
-                                <div className="mb-10 max-w-lg">
-                                    <h3 className="text-3xl font-bold text-slate-900 font-display mb-3">
-                                        {result.details.metadata?.name || "Official Credential"}
-                                    </h3>
-                                    <p className="text-slate-500 leading-relaxed font-medium">
-                                        {result.details.metadata?.description}
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-10 pt-10 border-t border-slate-50">
-                                    <div>
-                                        <div className="flex items-center gap-3 text-slate-400 mb-4 font-bold text-[10px] uppercase tracking-widest">
-                                            <Building2 size={16} /> Issuer
+                        {/* Public Credentials List */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {addressResult.credentials.map((cred: any) => (
+                                <motion.div
+                                    key={cred.assetId}
+                                    whileHover={{ y: -5 }}
+                                    className="glass p-6 rounded-[2.5rem] bg-white border border-slate-200/60 shadow-sm flex flex-col"
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+                                            <GraduationCap size={24} />
                                         </div>
-                                        <p className="text-lg font-bold text-slate-900">{result.details.metadata?.properties?.issuer_name || "N/A"}</p>
-                                        <p className="text-xs font-mono text-slate-400 break-all mt-2 truncate bg-slate-50 p-2 rounded-lg">{result.details.creator || "Unknown Creator"}</p>
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-3 text-slate-400 mb-4 font-bold text-[10px] uppercase tracking-widest">
-                                            <Calendar size={16} /> Issue Date
-                                        </div>
-                                        <p className="text-lg font-bold text-slate-900">
-                                            {result.details.metadata?.properties?.issued_timestamp
-                                                ? new Date(result.details.metadata.properties.issued_timestamp).toLocaleDateString()
-                                                : "N/A"}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                            <span className="text-xs font-bold text-emerald-600">On-Chain Verified</span>
+                                        <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold tracking-wider uppercase">
+                                            {cred.status}
                                         </div>
                                     </div>
-                                </div>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-1">{cred.title}</h3>
+                                    <p className="text-xs text-slate-500 mb-4 font-medium">{cred.issuer}</p>
 
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <a
-                                        href={result.details.documentUrl}
-                                        target="_blank"
-                                        className="h-14 px-8 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all flex-grow shadow-lg"
+                                    <div className="space-y-2 mb-6 flex-grow">
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400 uppercase font-bold">Asset ID</span>
+                                            <span className="text-slate-900 font-mono font-bold">#{cred.assetId}</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400 uppercase font-bold">Issue Date</span>
+                                            <span className="text-slate-900 font-bold">{new Date(cred.issueDate).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            setAssetId(cred.assetId.toString());
+                                            handleVerify(cred.assetId.toString());
+                                            window.scrollTo({ top: 400, behavior: 'smooth' });
+                                        }}
+                                        className="h-10 w-full rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
                                     >
-                                        <Download size={20} />
-                                        View Original Document
-                                    </a>
-                                    <a
-                                        href={`https://testnet.explorer.perawallet.app/asset/${assetId}`}
-                                        target="_blank"
-                                        className="h-14 px-8 rounded-2xl border border-slate-200 text-slate-600 font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all flex-grow"
-                                    >
-                                        <ExternalLink size={20} />
-                                        Verify on Explorer
-                                    </a>
+                                        <ShieldCheck size={14} />
+                                        Verify This Credential
+                                    </button>
+                                </motion.div>
+                            ))}
+
+                            {addressResult.credentials.length === 0 && (
+                                <div className="col-span-full py-20 text-center">
+                                    <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
+                                        <ShieldX size={40} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900">No Credentials Found</h3>
+                                    <p className="text-slate-500">This wallet address does not have any issued credentials on the CredX network.</p>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

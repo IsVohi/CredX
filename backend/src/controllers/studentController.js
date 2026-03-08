@@ -15,7 +15,7 @@ exports.getStudentCredentials = async (req, res) => {
 
         res.status(200).json({
             student: req.user.name,
-            wallet: studentWallet,
+            address: studentWallet,
             credentials: credentials
         });
     } catch (error) {
