@@ -13,6 +13,7 @@ import {
     History
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface StatCardProps {
     label: string;
@@ -49,6 +50,7 @@ const StatCard = ({ label, value, icon: Icon, color, change }: StatCardProps) =>
 import { api } from "@/lib/api";
 
 export default function InstitutionDashboard() {
+    const router = useRouter();
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,12 @@ export default function InstitutionDashboard() {
             const { data: result, error: apiError } = await api.get("/institutions/me");
 
             if (apiError) {
+                // Check if it's a permission error or missing profile
+                const { data: meData } = await api.get("/auth/me");
+                if (meData && !(meData as any).role) {
+                    router.replace("/onboarding");
+                    return;
+                }
                 setError(apiError);
             } else {
                 setData(result);
@@ -66,7 +74,7 @@ export default function InstitutionDashboard() {
         };
 
         fetchDashboardData();
-    }, []);
+    }, [router]);
 
     if (isLoading) {
         return (

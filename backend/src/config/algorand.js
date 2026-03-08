@@ -31,11 +31,13 @@ try {
     console.warn("Failed to load ISSUER_PRIVATE_KEY from base64. Minting will be disabled.", error);
 }
 
-const APP_ID = process.env.APP_ID ? parseInt(process.env.APP_ID, 10) : 0;
+const APP_ID = (process.env.ALGORAND_APP_ID || process.env.APP_ID) ? parseInt(process.env.ALGORAND_APP_ID || process.env.APP_ID, 10) : 0;
+const REGISTRY_APP_ID = process.env.ALGORAND_REGISTRY_APP_ID ? parseInt(process.env.ALGORAND_REGISTRY_APP_ID, 10) : 0;
 
 module.exports = {
     algodClient,
     indexerClient,
     issuerAccount,
-    APP_ID
+    APP_ID,
+    REGISTRY_APP_ID
 };

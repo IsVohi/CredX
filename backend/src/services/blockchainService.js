@@ -1,5 +1,5 @@
 const algosdk = require('algosdk');
-const { algodClient, indexerClient, issuerAccount, APP_ID } = require('../config/algorand');
+const { algodClient, indexerClient, issuerAccount, APP_ID, REGISTRY_APP_ID } = require('../config/algorand');
 const crypto = require('crypto');
 
 /**
@@ -37,7 +37,7 @@ exports.mintCredentialNFT = async (studentWallet, metadataCID) => {
     const params = await getParams();
     const appArgs = [
         new Uint8Array(Buffer.from("mint")),
-        new Uint8Array(Buffer.from(metadataCID)), // simplified hash for the example
+        computeHash(metadataCID), // Ensures 32-byte length
         new Uint8Array(Buffer.from(metadataCID))  // ipfs_cid
     ];
 
@@ -50,6 +50,7 @@ exports.mintCredentialNFT = async (studentWallet, metadataCID) => {
         appIndex: APP_ID,
         appArgs: appArgs,
         accounts: [studentWallet],
+        foreignApps: REGISTRY_APP_ID ? [REGISTRY_APP_ID] : [],
         suggestedParams: params
     });
 
@@ -199,72 +200,95 @@ exports.verifyCredential = async (assetId, metadataHashBuf) => {
 };
 
 /**
- * Retrieves all credentials (assets) held by a student wallet created by the Credential Manager App
+ * Retrieves all credentials (assets) held by OR issued to a student wallet 
+ * by checking both current holdings and transaction history for 'mint' calls.
  */
 exports.getStudentCredentials = async (studentWallet) => {
     if (!APP_ID) throw new Error("Credential Manager APP_ID not configured.");
 
     try {
+        if (!studentWallet || !algosdk.isValidAddress(studentWallet)) {
+            console.warn(`[BLOCKCHAIN] Invalid student wallet address: ${studentWallet}`);
+            return [];
+        }
+
         const appAddress = algosdk.getApplicationAddress(APP_ID);
-
-        // Lookup assets held by the student
-        const accountInfo = await indexerClient.lookupAccountAssets(studentWallet).do();
-
         const credentials = [];
+        const seenAssetIds = new Set();
 
-        // Filter assets that have a balance > 0
-        const heldAssets = (accountInfo.assets || []).filter(a => a.amount > 0);
+        // 1. Check Held Assets (Standard discovery)
+        try {
+            const accountInfo = await indexerClient.lookupAccountAssets(studentWallet).do();
+            const heldAssets = (accountInfo.assets || []).filter(a => a.amount > 0);
 
-        for (const asset of heldAssets) {
-            try {
-                // Fetch full asset data to check creator
-                const assetData = await indexerClient.lookupAssetByID(asset['asset-id']).do();
-                const assetParams = assetData.asset.params;
+            for (const asset of heldAssets) {
+                const assetId = asset['asset-id'];
+                if (seenAssetIds.has(assetId)) continue;
 
-                // If created by our app, it's a Credential
-                if (assetParams.creator === appAddress || assetParams.creator === issuerAccount?.addr) {
+                try {
+                    const assetData = await indexerClient.lookupAssetByID(assetId).do();
+                    const assetParams = assetData.asset.params;
 
-                    // Fetch off-chain metadata (ARC-3)
-                    let metadata = null;
-                    let documentUrl = null;
-                    let title = assetParams.name || "Credential";
-                    let program = "Verified Program";
-                    let issueDate = new Date().toISOString();
-
-                    if (assetParams.url && assetParams.url.startsWith('ipfs://')) {
-                        const cid = assetParams.url.split('ipfs://')[1];
-                        try {
-                            const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
-                            const axios = require('axios');
-                            const response = await axios.get(`${gateway}${cid}`);
-                            metadata = response.data;
-                            title = metadata.name || title;
-                            program = metadata.properties?.program_name || program;
-                            issueDate = metadata.properties?.issued_timestamp || issueDate;
-                            documentUrl = metadata.properties?.ipfs_document_cid
-                                ? `${gateway}${metadata.properties.ipfs_document_cid}`
-                                : null;
-                        } catch (e) {
-                            console.warn(`Failed to fetch metadata for asset ${asset['asset-id']}:`, e.message);
+                    if (assetParams.creator === appAddress || assetParams.creator === issuerAccount?.addr) {
+                        const cred = await fetchCredentialMetadata(assetId, assetParams);
+                        if (cred) {
+                            credentials.push(cred);
+                            seenAssetIds.add(assetId);
                         }
                     }
-
-                    // Get on-chain status
-                    const credStatus = await module.exports.getCredential(asset['asset-id']);
-
-                    credentials.push({
-                        assetId: asset['asset-id'],
-                        title: title,
-                        issuer: metadata?.properties?.issuer_name || "Verified Institution",
-                        issueDate: issueDate,
-                        status: credStatus.statusStr,
-                        program: program,
-                        documentUrl: documentUrl || assetParams.url
-                    });
+                } catch (e) {
+                    console.warn(`[BLOCKCHAIN] Skip held asset ${assetId}:`, e.message);
                 }
-            } catch (err) {
-                console.warn(`Error processing asset ${asset['asset-id']}:`, err.message);
             }
+        } catch (e) {
+            console.warn("[BLOCKCHAIN] Held assets lookup failed:", e.message);
+        }
+
+        // 2. Search Transaction History (Discovery for pending/un-opted-in credentials)
+        // We look for 'mint' calls where the student's wallet was passed in accounts[0]
+        try {
+            console.log(`[BLOCKCHAIN] Searching mint history for ${studentWallet}...`);
+            const txns = await indexerClient.searchForTransactions()
+                .applicationID(APP_ID)
+                .address(studentWallet)
+                .txType('appl')
+                .do();
+
+            for (const tx of (txns.transactions || [])) {
+                const appTx = tx['application-transaction'];
+                if (!appTx) continue;
+
+                // Check if it's the 'mint' method (first arg is 'mint')
+                const args = appTx['application-args'] || [];
+                const method = args[0] ? Buffer.from(args[0], 'base64').toString() : '';
+
+                if (method === 'mint') {
+                    // Extract Asset ID from inner transactions
+                    const innerTxns = tx['inner-txns'] || [];
+                    for (const inner of innerTxns) {
+                        const assetId = inner['created-asset-index'] || inner['asset-index'];
+                        if (assetId && !seenAssetIds.has(assetId)) {
+                            try {
+                                const assetData = await indexerClient.lookupAssetByID(assetId).do();
+                                const assetParams = assetData.asset.params;
+
+                                const cred = await fetchCredentialMetadata(assetId, assetParams);
+                                if (cred) {
+                                    credentials.push({
+                                        ...cred,
+                                        status: 'PENDING_OPT_IN' // Special status for unheld assets
+                                    });
+                                    seenAssetIds.add(assetId);
+                                }
+                            } catch (e) {
+                                console.warn(`[BLOCKCHAIN] Skip historical asset ${assetId}:`, e.message);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[BLOCKCHAIN] Transaction history lookup failed:", e.message);
         }
 
         return credentials;
@@ -274,6 +298,49 @@ exports.getStudentCredentials = async (studentWallet) => {
         throw new Error("Failed to fetch credentials from the blockchain indexer.");
     }
 };
+
+/**
+ * Internal helper to fetch metadata for a credential asset
+ */
+async function fetchCredentialMetadata(assetId, assetParams) {
+    let title = assetParams.name || "Credential";
+    let program = "Verified Program";
+    let issueDate = new Date().toISOString();
+    let issuer = "Verified Institution";
+    let documentUrl = assetParams.url;
+
+    if (assetParams.url && assetParams.url.startsWith('ipfs://')) {
+        const cid = assetParams.url.split('ipfs://')[1];
+        try {
+            const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
+            const axios = require('axios');
+            const response = await axios.get(`${gateway}${cid}`, { timeout: 3000 });
+            const metadata = response.data;
+            title = metadata.name || title;
+            issuer = metadata.properties?.issuer_name || issuer;
+            program = metadata.properties?.program_name || program;
+            issueDate = metadata.properties?.issued_timestamp || issueDate;
+            documentUrl = metadata.properties?.ipfs_document_cid
+                ? `${gateway}${metadata.properties.ipfs_document_cid}`
+                : `${gateway}${cid}`;
+        } catch (e) {
+            console.warn(`[BLOCKCHAIN] Metadata fetch failed for ${assetId}:`, e.message);
+        }
+    }
+
+    // Get on-chain status
+    const credStatus = await exports.getCredential(assetId);
+
+    return {
+        assetId: assetId,
+        title: title,
+        issuer: issuer,
+        issueDate: issueDate,
+        status: credStatus.statusStr,
+        program: program,
+        documentUrl: documentUrl
+    };
+}
 
 /**
  * Retrieves stats and credentials issued by the configured issuer account

@@ -8,7 +8,7 @@ export default function SignInPage() {
     const router = useRouter();
 
     useEffect(() => {
-        window.location.href = "/auth/login";
+        window.location.href = "/api/auth/login";
     }, []);
 
     return (

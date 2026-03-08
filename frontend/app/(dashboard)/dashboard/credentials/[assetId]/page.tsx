@@ -237,13 +237,14 @@ export default function CredentialDetailPage() {
                             </div>
 
                             <a
-                                href={`https://testnet.algoexplorer.io/asset/${assetId}`}
+                                title="View on Pera Explorer"
+                                href={`https://testnet.explorer.perawallet.app/asset/${assetId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-full h-12 mt-10 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all border border-white/10"
                             >
                                 <ExternalLink size={16} />
-                                View on AlgoExplorer
+                                View on Pera Explorer
                             </a>
                         </div>
 

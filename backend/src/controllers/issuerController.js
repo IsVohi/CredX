@@ -4,7 +4,7 @@ const blockchainService = require('../services/blockchainService');
 
 exports.getIssuerProfile = async (req, res) => {
     try {
-        const issuerAddress = req.user.address || process.env.ISSUER_WALLET_ADDRESS || "UNKNOWN";
+        const issuerAddress = req.user.address || process.env.ISSUER_WALLET_ADDRESS || "Y5QWXXLDDVCA2SDFOXU4N262JL2XIWTYBPZVHHKHGABUAT333XKDU2PL3M";
 
         // Fetch real on-chain stats for this issuer
         const stats = await blockchainService.getIssuerStats();
@@ -72,7 +72,7 @@ exports.getInstitutions = async (req, res) => {
                 logo: 'https://logo.clearbit.com/education.com',
                 status: 'VERIFIED',
                 credentialsIssued: stats.totalIssued,
-                address: process.env.ISSUER_WALLET_ADDRESS || 'Live Address Secret',
+                address: process.env.ISSUER_WALLET_ADDRESS || 'Y5QWXXLDDVCA2SDFOXU4N262JL2XIWTYBPZVHHKHGABUAT333XKDU2PL3M',
                 reputation: 99.9
             }
         ];

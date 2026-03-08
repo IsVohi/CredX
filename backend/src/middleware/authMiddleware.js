@@ -1,4 +1,5 @@
 const { auth } = require('express-oauth2-jwt-bearer');
+const users = require('../models/userStore');
 require('dotenv').config();
 
 // Create middleware to validate Auth0 JWTs
@@ -14,15 +15,33 @@ const requireRole = (role) => {
     return (req, res, next) => {
         // express-oauth2-jwt-bearer attaches claims to req.auth.payload
         const payload = req.auth.payload;
-        req.user = payload; // Attach for legacy controller compatibility
+        const auth0Id = payload.sub;
 
-        // Role might be in a custom namespace or direct claim
-        const userRoles = payload['https://credx.io/roles'] || payload.role || payload.roles || [];
-        const rolesArray = Array.isArray(userRoles) ? userRoles : [userRoles];
+        // Fetch local role if it exists (set during onboarding)
+        const localUser = users[auth0Id] || {};
+        const localRole = localUser.role;
+
+        console.log(`[AUTH DEBUG] Auth0ID: ${auth0Id}`);
+        console.log(`[AUTH DEBUG] Local Role: ${localRole || 'NONE'}`);
+        console.log(`[AUTH DEBUG] Required Role: ${role}`);
+
+        req.user = {
+            ...payload,
+            ...localUser
+        };
+
+        // Role might be in a custom namespace, direct claim, or our local store
+        const tokenRoles = payload['https://credx.io/roles'] || payload.role || payload.roles || [];
+        const rolesArray = (Array.isArray(tokenRoles) ? [...tokenRoles] : [tokenRoles]).filter(Boolean);
+
+        if (localRole) rolesArray.push(localRole);
+
+        console.log(`[AUTH DEBUG] Final Roles Array:`, rolesArray);
 
         if (rolesArray.includes(role) || rolesArray.includes('ADMIN')) {
             next();
         } else {
+            console.warn(`[AUTH DEBUG] 403 Access Denied for ${auth0Id}`);
             return res.status(403).json({ error: `Insufficient permissions. ${role} role required.` });
         }
     };

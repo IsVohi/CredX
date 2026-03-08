@@ -214,7 +214,7 @@ function VerificationContent() {
                                         View Original Document
                                     </a>
                                     <a
-                                        href={`https://testnet.algoexplorer.io/asset/${assetId}`}
+                                        href={`https://testnet.explorer.perawallet.app/asset/${assetId}`}
                                         target="_blank"
                                         className="h-14 px-8 rounded-2xl border border-slate-200 text-slate-600 font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all flex-grow"
                                     >

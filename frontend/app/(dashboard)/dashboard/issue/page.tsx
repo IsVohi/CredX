@@ -331,7 +331,7 @@ export default function IssueCredentialPage() {
                                             Done
                                         </button>
                                         <a
-                                            href={`https://testnet.algoexplorer.io/tx/${result?.transactionId}`}
+                                            href={`https://testnet.explorer.perawallet.app/tx/${result?.transactionId}`}
                                             target="_blank"
                                             className="flex-1 h-12 rounded-xl bg-primary text-white font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all"
                                         >

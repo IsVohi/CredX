@@ -20,6 +20,7 @@ import {
     CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface CredentialCardProps {
     credential: {
@@ -103,6 +104,7 @@ const CredentialCard = ({ credential, onViewDetails }: CredentialCardProps) => (
 import { api } from "@/lib/api";
 
 export default function StudentDashboard() {
+    const router = useRouter();
     const [data, setData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -121,6 +123,12 @@ export default function StudentDashboard() {
             const { data: result, error: apiError } = await api.get("/student/credentials");
 
             if (apiError) {
+                // Check if it's a permission error or missing profile
+                const { data: meData } = await api.get("/auth/me");
+                if (meData && !(meData as any).role) {
+                    router.replace("/onboarding");
+                    return;
+                }
                 setError(apiError);
             } else {
                 setData(result);
@@ -129,7 +137,7 @@ export default function StudentDashboard() {
         };
 
         fetchCredentials();
-    }, []);
+    }, [router]);
 
     if (isLoading) {
         return (
@@ -154,7 +162,13 @@ export default function StudentDashboard() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2 font-display">My Credentials</h1>
-                    <p className="text-slate-500">Welcome, {data.student} • Manage your blockchain-verified profile</p>
+                    <div className="flex flex-col gap-1">
+                        <p className="text-slate-500">Welcome, {data.student} • Manage your blockchain-verified profile</p>
+                        <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400 bg-slate-50 w-fit px-2 py-1 rounded-lg border border-slate-100">
+                            <ShieldCheck size={10} className="text-primary" />
+                            {data.address}
+                        </div>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative">

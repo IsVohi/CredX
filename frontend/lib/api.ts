@@ -3,7 +3,11 @@
  * Centralizes all backend communication, authentication, and error handling.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/api";
+
+if (typeof window !== 'undefined') {
+    console.log(`[API DEBUG] Base URL: ${BASE_URL}`);
+}
 
 export type ApiResponse<T = any> = {
     data?: T;
@@ -19,14 +23,18 @@ export const getAuthTokenAsync = async (): Promise<string | undefined> => {
     if (typeof window === 'undefined') return undefined; // SSR check
     if (cachedToken) return cachedToken;
     try {
-        const res = await fetch('/auth/access-token');
+        console.log("[API DEBUG] Fetching new access token...");
+        const res = await fetch('/api/auth/access-token');
         if (res.ok) {
             const data = await res.json();
             cachedToken = data.token;
+            console.log("[API DEBUG] Token acquired successfully.");
             return cachedToken;
+        } else {
+            console.warn(`[API DEBUG] Failed to get access token: ${res.status} ${res.statusText}`);
         }
-    } catch {
-        // Silent fail
+    } catch (err) {
+        console.error("[API DEBUG] Error fetching access token:", err);
     }
     return undefined;
 };

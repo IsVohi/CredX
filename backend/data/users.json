@@ -1,0 +1,32 @@
+{
+  "auth0|69ac80f45bc193ff87a6b75e": {
+    "name": "viki",
+    "role": "STUDENT",
+    "address": "Q6CY2TPAWGTDHWLF2MXNDT5K7CEHV6LAESGKA4DUCY3H2M7HNAWVUZM6U4"
+  },
+  "auth0|69ac8ef47fac3c1e8841c239": {
+    "name": "viki",
+    "role": "ISSUER",
+    "address": "F23I4Z2LXS6ENDDX6R5T37QIQM3L3CPJK6EU3OXTKP3N6GHC3DBVU7OVOU"
+  },
+  "auth0|69ac9089d836c5521d10e57f": {
+    "name": "Poornima",
+    "role": "ISSUER",
+    "address": "HZCCAL7SL66NF7NYHAUNIK7TM4DCAXGAD6REKAZP3IKVR4QUDIXQZ5OF4U"
+  },
+  "auth0|69ac898af25c2bcbc54d113f": {
+    "name": "vikas",
+    "role": "STUDENT",
+    "address": "HXN2YYVTQRMYNETLO2Y2TVYE472XDTGR7XWQ2QTKE5SCKN7EPO67FEDSPY"
+  },
+  "auth0|69ac9bf0f25c2bcbc54d21f8": {
+    "name": "Vikas",
+    "role": "STUDENT",
+    "address": "W2QAAKVVOW43YMZ6ZTXXID54NCLPEZDMDM4MXAXODKWDJT75BW6XTTXJMQ"
+  },
+  "auth0|69aca60bf25c2bcbc54d2b4c": {
+    "name": "UniqueUser123456",
+    "role": "ISSUER",
+    "address": "UXSDBIPNKRGRAW6CJSHSKXPXOMZ2EVEFAH5BRFL6RQREZY4TAYGWTSG2OI"
+  }
+}

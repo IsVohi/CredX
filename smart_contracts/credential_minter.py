@@ -64,26 +64,6 @@ itxn_field ConfigAssetName
 byte "CREDX"
 itxn_field ConfigAssetUnitName
 itxn_submit
-itxn_begin
-int axfer
-itxn_field TypeEnum
-itxn CreatedAssetID
-itxn_field XferAsset
-txna Accounts 1
-itxn_field AssetReceiver
-int 1
-itxn_field AssetAmount
-itxn_submit
-itxn_begin
-int afrz
-itxn_field TypeEnum
-itxn CreatedAssetID
-itxn_field FreezeAsset
-txna Accounts 1
-itxn_field FreezeAssetAccount
-int 1
-itxn_field FreezeAssetFrozen
-itxn_submit
 byte "Minted Credential Asset ID: "
 itxn CreatedAssetID
 itob
