@@ -17,10 +17,10 @@ const studentRoutes = require('./routes/studentRoutes');
 const authRoutes = require('./routes/authRoutes');
 
 // Register routes
-app.use('/api/credentials', credentialRoutes);
-app.use('/api/institutions', issuerRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/v1/credentials', credentialRoutes);
+app.use('/api/v1/institutions', issuerRoutes);
+app.use('/api/v1/student', studentRoutes);
+app.use('/api/v1/auth', authRoutes);
 
 // Health check & Welcome
 app.get('/', (req, res) => {
