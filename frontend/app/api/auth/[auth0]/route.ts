@@ -9,7 +9,8 @@ export const GET = async (req: NextRequest) => {
     if (pathname.endsWith("/access-token")) {
         try {
             const token = await auth0.getAccessToken();
-            return NextResponse.json(token);
+            const tokenStr = typeof token === 'string' ? token : (token as { token?: string })?.token ?? String(token);
+            return NextResponse.json({ token: tokenStr });
         } catch (error) {
             console.error("[AUTH ROUTE] Access token error:", error);
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

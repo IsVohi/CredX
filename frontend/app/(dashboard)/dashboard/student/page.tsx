@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import QRCodeModal from "@/components/QRCodeModal";
 
 interface CredentialCardProps {
     credential: {
@@ -33,9 +34,12 @@ interface CredentialCardProps {
         documentUrl: string;
     };
     onViewDetails: (cred: any) => void;
+    onDownload: (cred: any) => void;
+    onShare: (cred: any) => void;
+    onShowQR: (cred: any) => void;
 }
 
-const CredentialCard = ({ credential, onViewDetails }: CredentialCardProps) => (
+const CredentialCard = ({ credential, onViewDetails, onDownload, onShare, onShowQR }: CredentialCardProps) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -81,15 +85,24 @@ const CredentialCard = ({ credential, onViewDetails }: CredentialCardProps) => (
                 <Search size={14} />
                 View Details
             </button>
-            <button className="h-10 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
+            <button
+                onClick={() => onDownload(credential)}
+                className="h-10 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
+            >
                 <Download size={14} />
                 Download
             </button>
-            <button className="h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all">
+            <button
+                onClick={() => onShare(credential)}
+                className="h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+            >
                 <LinkIcon size={14} />
                 Share
             </button>
-            <button className="h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all">
+            <button
+                onClick={() => onShowQR(credential)}
+                className="h-10 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+            >
                 <QrCode size={14} />
                 QR Code
             </button>
@@ -110,9 +123,35 @@ export default function StudentDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [selectedCredential, setSelectedCredential] = useState<any>(null);
     const [isSharing, setIsSharing] = useState(false);
+    const [qrCredential, setQrCredential] = useState<any>(null);
+
+    const verificationUrl = (assetId: number) =>
+        `${typeof window !== "undefined" ? window.location.origin : ""}/verify?assetId=${assetId}`;
+
+    const handleDownload = (cred: any) => {
+        if (cred.documentUrl) {
+            window.open(cred.documentUrl, "_blank", "noopener,noreferrer");
+        } else {
+            window.open(verificationUrl(cred.assetId), "_blank");
+        }
+    };
+
+    const handleShare = async (cred: any) => {
+        const url = verificationUrl(cred.assetId);
+        const text = `Verify my credential: ${cred.title}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: cred.title, text, url });
+            } catch {
+                navigator.clipboard.writeText(url);
+            }
+        } else {
+            navigator.clipboard.writeText(url);
+        }
+    };
 
     const handleShareProfile = () => {
-        const url = `${window.location.origin}/institutions?student=${data?.address || ""}`;
+        const url = `${typeof window !== "undefined" ? window.location.origin : ""}/verify`;
         navigator.clipboard.writeText(url);
         setIsSharing(true);
         setTimeout(() => setIsSharing(false), 2000);
@@ -192,6 +231,9 @@ export default function StudentDashboard() {
                         key={cred.assetId}
                         credential={cred}
                         onViewDetails={setSelectedCredential}
+                        onDownload={handleDownload}
+                        onShare={handleShare}
+                        onShowQR={setQrCredential}
                     />
                 ))}
 
@@ -221,7 +263,7 @@ export default function StudentDashboard() {
                     <div className="max-w-xl">
                         <h3 className="text-2xl font-bold mb-3 font-display">Share your verification Link</h3>
                         <p className="text-slate-400 text-sm leading-relaxed font-medium">
-                            Generate a public profile link to share with employers. This link allows anyone to instantly verify the authenticity of your credentials on the Algorand testnet without needing your source documents.
+                            Copy the verification portal link. Share it with employers so they can verify your credentials by entering the Asset ID.
                         </p>
                     </div>
                     <button
@@ -245,6 +287,17 @@ export default function StudentDashboard() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-[60px] translate-y-1/2 -translate-x-1/2" />
             </div>
+
+            {/* QR Code Modal */}
+            <AnimatePresence>
+                {qrCredential && (
+                    <QRCodeModal
+                        url={verificationUrl(qrCredential.assetId)}
+                        title={qrCredential.title}
+                        onClose={() => setQrCredential(null)}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Credential Detail Modal */}
             <AnimatePresence>
@@ -308,14 +361,25 @@ export default function StudentDashboard() {
                                 </div>
 
                                 <div className="flex flex-wrap gap-3">
-                                    <a
-                                        href={selectedCredential.documentUrl}
-                                        target="_blank"
-                                        className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold flex items-center gap-2 hover:bg-slate-800 transition-all flex-1 justify-center"
-                                    >
-                                        <Download size={18} />
-                                        Download PDF
-                                    </a>
+                                    {selectedCredential.documentUrl ? (
+                                        <a
+                                            href={selectedCredential.documentUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold flex items-center gap-2 hover:bg-slate-800 transition-all flex-1 justify-center"
+                                        >
+                                            <Download size={18} />
+                                            Download PDF
+                                        </a>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleDownload(selectedCredential)}
+                                            className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold flex items-center gap-2 hover:bg-slate-800 transition-all flex-1 justify-center"
+                                        >
+                                            <Download size={18} />
+                                            View Credential
+                                        </button>
+                                    )}
                                     <Link
                                         href={`/verify?assetId=${selectedCredential.assetId}`}
                                         className="h-12 px-6 rounded-xl border border-slate-200 text-slate-600 font-bold flex items-center gap-2 hover:bg-slate-50 transition-all flex-1 justify-center"

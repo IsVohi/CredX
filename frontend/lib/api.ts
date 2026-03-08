@@ -27,7 +27,7 @@ export const getAuthTokenAsync = async (): Promise<string | undefined> => {
         const res = await fetch('/api/auth/access-token');
         if (res.ok) {
             const data = await res.json();
-            cachedToken = data.token;
+            cachedToken = typeof data === 'string' ? data : (data.token ?? data.access_token);
             console.log("[API DEBUG] Token acquired successfully.");
             return cachedToken;
         } else {

@@ -24,7 +24,7 @@ const menuItems = [
     { icon: Building2, label: "Institution Dashboard", href: "/dashboard/institution", roles: ["ISSUER", "ADMIN"] },
     { icon: Users, label: "Student Dashboard", href: "/dashboard/student", roles: ["STUDENT", "ADMIN"] },
     { icon: PlusCircle, label: "Issue Credential", href: "/dashboard/issue", roles: ["ISSUER", "ADMIN"] },
-    { icon: Search, label: "Verify Portal", href: "/verify", roles: ["STUDENT", "ISSUER", "ADMIN"] },
+    { icon: Search, label: "Verify Portal", href: "/dashboard/verification", roles: ["STUDENT", "ISSUER", "ADMIN"] },
 ];
 
 export default function Sidebar() {

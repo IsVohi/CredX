@@ -1,7 +1,6 @@
 "use client";
 
 import Sidebar from "@/components/dashboard/Sidebar";
-import Header from "@/components/dashboard/Header";
 import { motion } from "framer-motion";
 
 export default function DashboardLayout({
@@ -13,7 +12,6 @@ export default function DashboardLayout({
         <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header />
                 <main className="flex-1 overflow-y-auto p-8 relative">
                     {/* Background subtle gradients */}
                     <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">

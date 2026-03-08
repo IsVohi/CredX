@@ -1,6 +1,7 @@
 const algosdk = require('algosdk');
 const { algodClient, indexerClient, issuerAccount, APP_ID, REGISTRY_APP_ID } = require('../config/algorand');
 const crypto = require('crypto');
+const { fetchFromIPFS } = require('../utils/ipfsFetch');
 
 /**
  * Helper to get the suggested transaction params
@@ -313,15 +314,13 @@ async function fetchCredentialMetadata(assetId, assetParams) {
         const cid = assetParams.url.split('ipfs://')[1];
         try {
             const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
-            const axios = require('axios');
-            const response = await axios.get(`${gateway}${cid}`, { timeout: 3000 });
-            const metadata = response.data;
+            const metadata = await fetchFromIPFS(cid);
             title = metadata.name || title;
             issuer = metadata.properties?.issuer_name || issuer;
             program = metadata.properties?.program_name || program;
             issueDate = metadata.properties?.issued_timestamp || issueDate;
-            documentUrl = metadata.properties?.ipfs_document_cid
-                ? `${gateway}${metadata.properties.ipfs_document_cid}`
+            documentUrl = metadata.properties?.ipfs_document
+                ? metadata.properties.ipfs_document.replace('ipfs://', gateway)
                 : `${gateway}${cid}`;
         } catch (e) {
             console.warn(`[BLOCKCHAIN] Metadata fetch failed for ${assetId}:`, e.message);

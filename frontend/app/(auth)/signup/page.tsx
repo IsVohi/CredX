@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 
 export default function SignUpPage() {
     useEffect(() => {
-        window.location.href = "/auth/login?screen_hint=signup";
+        window.location.href = "/api/auth/login?screen_hint=signup";
     }, []);
 
     return (

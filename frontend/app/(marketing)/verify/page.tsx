@@ -20,15 +20,47 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
+import QRScanner from "@/components/QRScanner";
+
+import { useRouter } from "next/navigation";
 
 // Separate component for search params handling
 function VerificationContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data } = await api.get("/auth/me");
+            if (data && (data as any).role) {
+                const assetIdParam = searchParams.get("assetId");
+                const target = assetIdParam
+                    ? `/dashboard/verification?assetId=${assetIdParam}`
+                    : "/dashboard/verification";
+                router.replace(target);
+            }
+        };
+        checkAuth();
+    }, []);
+
     const [assetId, setAssetId] = useState(searchParams.get("assetId") || "");
     const [isVerifying, setIsVerifying] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
+
+    const parseScannedValue = (value: string): string => {
+        const trimmed = value.trim();
+        const match = trimmed.match(/assetId=(\d+)/);
+        if (match) return match[1];
+        if (/^\d+$/.test(trimmed)) return trimmed;
+        try {
+            const url = new URL(trimmed);
+            return url.searchParams.get("assetId") || trimmed;
+        } catch {
+            return trimmed;
+        }
+    };
 
     const handleVerify = async (id: string) => {
         if (!id) return;
@@ -101,6 +133,7 @@ function VerificationContent() {
                     <button
                         onClick={() => setShowScanner(true)}
                         className="h-14 w-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all shrink-0"
+                        title="Scan QR Code"
                     >
                         <QrCode size={24} />
                     </button>
@@ -258,67 +291,21 @@ function VerificationContent() {
                     </p>
                 </div>
             </div>
-            {/* Scanner Modal Simulation */}
-            <AnimatePresence>
-                {showScanner && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowScanner(false)}
-                            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden p-10 text-center"
-                        >
-                            <button
-                                onClick={() => setShowScanner(false)}
-                                className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                            <div className="w-20 h-20 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-6">
-                                <QrCode size={40} />
-                            </div>
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2">Scan QR Code</h3>
-                            <p className="text-slate-500 mb-8">Position the credential QR code within the frame to verify automatically.</p>
-
-                            <div className="aspect-square w-full max-w-[280px] mx-auto border-2 border-dashed border-primary/30 rounded-3xl mb-8 flex items-center justify-center relative bg-slate-50">
-                                <div className="absolute inset-0 rounded-3xl border-2 border-primary animate-pulse opacity-20" />
-                                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Simulating Camera...</p>
-                            </div>
-
-                            <p className="text-xs text-slate-400 font-medium mb-6">Or paste the verification code below:</p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="PASTE_CODE_HERE"
-                                    className="flex-grow h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 text-center font-mono text-sm"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const val = (e.target as HTMLInputElement).value;
-                                            if (val) {
-                                                setAssetId(val);
-                                                handleVerify(val);
-                                                setShowScanner(false);
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            {/* Real QR Scanner */}
+            {showScanner && (
+                <QRScanner
+                    onScan={(decodedText) => {
+                        const assetId = parseScannedValue(decodedText);
+                        setAssetId(assetId);
+                        handleVerify(assetId);
+                        setShowScanner(false);
+                    }}
+                    onClose={() => setShowScanner(false)}
+                />
+            )}
         </div>
     );
 }
-
-import { X } from "lucide-react";
 
 export default function VerificationPage() {
     return (

@@ -1,17 +1,33 @@
 import Link from "next/link";
 import { Github, Linkedin, Twitter } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export default function Footer() {
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data } = await api.get("/auth/me");
+            if (data && (data as any).role) {
+                setIsLoggedIn(true);
+            }
+        };
+        checkAuth();
+    }, []);
+
     return (
         <footer className="w-full border-t border-slate-200 bg-white pt-20 pb-10">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-16">
                     <div className="col-span-2 md:col-span-2">
                         <div className="flex items-center gap-2 mb-6">
-                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">
-                                C
-                            </div>
-                            <span className="font-bold text-xl tracking-tight text-slate-900">CredX</span>
+                            <Link href="/" className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">
+                                    C
+                                </div>
+                                <span className="font-bold text-xl tracking-tight text-slate-900">CredX</span>
+                            </Link>
                         </div>
                         <p className="text-slate-500 text-sm md:max-w-[250px] leading-relaxed">
                             Instantly verify academic credentials via the power of the Algorand blockchain and ARC-3 assets.
@@ -24,7 +40,7 @@ export default function Footer() {
                             <li><Link href="/#features" className="hover:text-primary transition-colors">Features</Link></li>
                             <li><Link href="/#how-it-works" className="hover:text-primary transition-colors">How it works</Link></li>
                             <li><Link href="/institutions" className="hover:text-primary transition-colors">Institutions</Link></li>
-                            <li><Link href="/verify" className="hover:text-primary transition-colors">Verify Portal</Link></li>
+                            <li><Link href={isLoggedIn ? "/dashboard/verification" : "/verify"} className="hover:text-primary transition-colors">Verify Portal</Link></li>
                         </ul>
                     </div>
 
@@ -33,8 +49,14 @@ export default function Footer() {
                         <ul className="flex flex-col gap-3 text-sm text-slate-500">
                             <li><a href="https://developer.algorand.org/" target="_blank" className="hover:text-primary transition-colors">Algorand Docs</a></li>
                             <li><a href="https://github.com/algorand/arcx" target="_blank" className="hover:text-primary transition-colors">ARC-3 Standard</a></li>
-                            <li><Link href="/signin" className="hover:text-primary transition-colors">Institution Login</Link></li>
-                            <li><Link href="/signup" className="hover:text-primary transition-colors">Student Signup</Link></li>
+                            {isLoggedIn ? (
+                                <li><Link href="/dashboard" className="hover:text-primary transition-colors">My Dashboard</Link></li>
+                            ) : (
+                                <>
+                                    <li><Link href="/signin" className="hover:text-primary transition-colors">Institution Login</Link></li>
+                                    <li><Link href="/signup" className="hover:text-primary transition-colors">Student Signup</Link></li>
+                                </>
+                            )}
                         </ul>
                     </div>
 

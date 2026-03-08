@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { ArrowRight, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 
@@ -97,14 +98,14 @@ export default function HeroSection() {
                 </motion.p>
 
                 <motion.div variants={item} className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
-                    <button className="h-14 px-8 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-1 w-full sm:w-auto text-lg">
+                    <Link href="/signup" className="h-14 px-8 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-1 w-full sm:w-auto text-lg group">
                         Start Issuing
                         <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
-                    </button>
+                    </Link>
 
-                    <button className="h-14 px-8 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-semibold flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 w-full sm:w-auto border border-slate-200 text-lg">
+                    <Link href="/verify" className="h-14 px-8 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-semibold flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 w-full sm:w-auto border border-slate-200 text-lg">
                         Verify a Document
-                    </button>
+                    </Link>
                 </motion.div>
 
                 <motion.div variants={item} className="mt-20 pt-8 flex flex-wrap justify-center items-center gap-x-12 gap-y-6 text-sm text-slate-500 font-medium opacity-80">

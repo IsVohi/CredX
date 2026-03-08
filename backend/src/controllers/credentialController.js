@@ -3,7 +3,7 @@
 const ipfsService = require('../services/ipfsService');
 const blockchainService = require('../services/blockchainService');
 const metadataBuilder = require('../utils/metadataBuilder');
-const axios = require('axios');
+const { fetchFromIPFS } = require('../utils/ipfsFetch');
 
 /**
  * Issue a new Credential
@@ -99,12 +99,10 @@ exports.getCredential = async (req, res) => {
         if (credentialOnChain.url && credentialOnChain.url.startsWith('ipfs://')) {
             const cid = credentialOnChain.url.split('ipfs://')[1];
             try {
-                // Determine gateway
                 const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
-                const response = await axios.get(`${gateway}${cid}`);
-                metadata = response.data;
-                documentUrl = metadata.properties && metadata.properties.ipfsDocument
-                    ? metadata.properties.ipfsDocument.replace('ipfs://', gateway) : null;
+                metadata = await fetchFromIPFS(cid);
+                documentUrl = metadata.properties && metadata.properties.ipfs_document
+                    ? metadata.properties.ipfs_document.replace('ipfs://', gateway) : null;
             } catch (ipfsError) {
                 console.warn('Failed to fetch metadata from IPFS directly during getCredential', ipfsError.message);
             }
