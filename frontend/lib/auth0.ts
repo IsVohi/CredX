@@ -4,7 +4,7 @@ export const auth0 = new Auth0Client({
     appBaseUrl: process.env.APP_BASE_URL || "http://localhost:3000",
     signInReturnToPath: "/dashboard",
     enableAccessTokenEndpoint: true,
-    allowInsecureRequests: true,
+    allowInsecureRequests: process.env.NODE_ENV === "development",
     routes: {
         login: "/api/auth/login",
         logout: "/api/auth/logout",
