@@ -4,6 +4,9 @@ const ipfsService = require('../services/ipfsService');
 const blockchainService = require('../services/blockchainService');
 const metadataBuilder = require('../utils/metadataBuilder');
 const { fetchFromIPFS } = require('../utils/ipfsFetch');
+const fraudDetectionService = require('../ai/fraudDetectionService');
+const voiceService = require('../ai/voiceService');
+const credentialInsightService = require('../ai/credentialInsightService');
 
 /**
  * Issue a new Credential
@@ -27,6 +30,19 @@ exports.issueCredential = async (req, res) => {
         if (!studentWallet || !studentName || !credentialTitle) {
             return res.status(400).json({ error: 'Missing required fields: studentWallet, studentName, or credentialTitle.' });
         }
+
+        // --- NEW: AI Fraud Detection ---
+        const { forceIssue } = req.body;
+        const fraudAnalysis = await fraudDetectionService.analyzeDocument(req.file.buffer, req.file.originalname);
+
+        if (fraudAnalysis.riskLevel === 'HIGH' && !forceIssue) {
+            return res.status(422).json({
+                error: 'Suspicious document detected.',
+                warning: 'The AI fraud detection system flagged this document as potentially tampered with.',
+                analysis: fraudAnalysis
+            });
+        }
+        // ------------------------------
 
         // 1. Upload credential document to IPFS
         const documentUploadResult = await ipfsService.uploadDocument(req.file.buffer, req.file.originalname);
@@ -69,7 +85,8 @@ exports.issueCredential = async (req, res) => {
             assetId: mintResult.assetId,
             transactionId: mintResult.txId,
             metadataCid,
-            documentCid
+            documentCid,
+            fraudAnalysis // Include analysis in success response too
         });
 
     } catch (error) {
@@ -108,12 +125,23 @@ exports.getCredential = async (req, res) => {
             }
         }
 
+        // --- NEW: AI Insights ---
+        let aiInsights = null;
+        if (metadata) {
+            aiInsights = await credentialInsightService.generateInsights(
+                metadata,
+                { name: metadata.properties?.issuer_name || "Verified Institution", wallet: credentialOnChain.creator }
+            );
+        }
+        // -------------------------
+
         res.status(200).json({
             assetId,
             onChainStatus: credentialOnChain.statusStr,
             creator: credentialOnChain.creator,
             metadata,
-            documentUrl
+            documentUrl,
+            aiInsights
         });
 
     } catch (error) {
@@ -166,14 +194,35 @@ exports.verifyCredential = async (req, res) => {
         // For standard public API checks, verifyCredential relies on the Box states
         const verificationResult = await blockchainService.verifyCredential(assetId);
 
+        // --- NEW: AI Insights ---
+        let aiInsights = null;
+        const gateway = process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
+        let metadata = null;
+
+        if (verificationResult.isValid && verificationResult.assetData.url && verificationResult.assetData.url.startsWith('ipfs://')) {
+            const cid = verificationResult.assetData.url.split('ipfs://')[1];
+            try {
+                metadata = await fetchFromIPFS(cid);
+                aiInsights = await credentialInsightService.generateInsights(
+                    metadata,
+                    { name: metadata.properties?.issuer_name || "Verified Institution", wallet: verificationResult.assetData.creator }
+                );
+            } catch (err) {
+                console.warn('AI Insights failed during verification', err.message);
+            }
+        }
+        // -------------------------
+
         res.status(200).json({
             verified: verificationResult.isValid,
             status: verificationResult.isValid ? 'VALID' : 'INVALID',
             details: {
                 assetId: verificationResult.assetData.assetId,
                 onchainStatus: verificationResult.assetData.statusStr,
-                creator: verificationResult.assetData.creator
-            }
+                creator: verificationResult.assetData.creator,
+                metadata: metadata // Include metadata in verify response for frontend convenience
+            },
+            aiInsights
         });
 
     } catch (error) {
@@ -206,5 +255,121 @@ exports.getPublicStudentCredentialsByAddress = async (req, res) => {
     } catch (error) {
         console.error('Public Student Lookup Error:', error);
         res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Generate Voice Summary
+ * GET /credentials/:assetId/voice
+ */
+exports.getVoiceSummary = async (req, res) => {
+    try {
+        const { assetId } = req.params;
+
+        // 1. Fetch credential data
+        const credentialOnChain = await blockchainService.getCredential(parseInt(assetId));
+        if (!credentialOnChain) {
+            return res.status(404).json({ error: 'Credential not found' });
+        }
+
+        // 2. Fetch metadata from IPFS
+        let metadata = null;
+        if (credentialOnChain.url && credentialOnChain.url.startsWith('ipfs://')) {
+            const cid = credentialOnChain.url.split('ipfs://')[1];
+            try {
+                metadata = await fetchFromIPFS(cid);
+            } catch (e) {
+                console.warn('IPFS fetch failed for voice summary', e.message);
+            }
+        }
+
+        // 3. Prepare text for narration
+        // We prioritize the AI analytical summary if available, otherwise fallback to metadata description
+        let narrationText = "";
+
+        try {
+            // Fetch/Generate insights if not already present
+            const insights = await credentialInsightService.generateInsights(
+                metadata,
+                { name: metadata.properties?.issuer_name || "Verified Institution", wallet: credentialOnChain.creator }
+            );
+
+            if (insights && insights.analysisSummary) {
+                narrationText = `Here is the AI analysis for this credential. ${insights.analysisSummary}`;
+            }
+        } catch (insightErr) {
+            console.warn('Insight generation failed for voice summary, falling back to basic narration', insightErr.message);
+        }
+
+        if (!narrationText) {
+            const studentName = (metadata && metadata.name) || 'Student';
+            const title = (metadata && (metadata.properties?.program_name || metadata.name)) || 'Credential';
+            const issuer = (metadata && metadata.properties?.issuer_name) || 'a Verified Institution';
+            narrationText = `Verified credential for ${studentName}. This ${title} was issued by ${issuer} and has been authenticated on the blockchain.`;
+        }
+
+        // 4. Generate audio
+        try {
+            const audioBuffer = await voiceService.generateCredentialAudio(narrationText);
+
+            res.set({
+                'Content-Type': 'audio/mpeg',
+                'Content-Length': audioBuffer.length,
+                'Cache-Control': 'public, max-age=3600'
+            });
+
+            res.send(audioBuffer);
+        } catch (voiceError) {
+            if (voiceError.message === 'NO_API_KEY') {
+                return res.status(403).json({
+                    error: 'Voice generation requires an API Key.',
+                    fallback: true
+                });
+            }
+            throw voiceError;
+        }
+
+    } catch (error) {
+        console.error('Voice Summary Error:', error);
+        res.status(500).json({ error: 'Failed to generate voice summary.' });
+    }
+};
+
+/**
+ * Get AI-generated Credential Insights
+ * GET /credentials/:assetId/insights
+ */
+exports.getCredentialInsights = async (req, res) => {
+    try {
+        const { assetId } = req.params;
+
+        // 1. Fetch on-chain data
+        const credentialOnChain = await blockchainService.getCredential(parseInt(assetId));
+
+        // 2. Fetch metadata from IPFS
+        let metadata = null;
+        if (credentialOnChain.url && credentialOnChain.url.startsWith('ipfs://')) {
+            const cid = credentialOnChain.url.split('ipfs://')[1];
+            try {
+                metadata = await fetchFromIPFS(cid);
+            } catch (e) {
+                console.warn('IPFS fetch failed for insights', e.message);
+            }
+        }
+
+        if (!metadata) {
+            return res.status(404).json({ error: 'Metadata not found for insights generation.' });
+        }
+
+        // 3. Generate insights
+        const insights = await credentialInsightService.generateInsights(
+            metadata,
+            { name: metadata.properties?.issuer_name || "Verified Institution", wallet: credentialOnChain.creator }
+        );
+
+        res.status(200).json(insights);
+    } catch (error) {
+        console.error('Credential Insights Error:', error);
+        res.status(500).json({ error: 'Failed to generate credential insights.' });
     }
 };

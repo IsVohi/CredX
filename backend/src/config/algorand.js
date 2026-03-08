@@ -1,5 +1,4 @@
 const algosdk = require('algosdk');
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
 
 const algodToken = process.env.ALGOD_API_TOKEN || '';
 const algodServer = process.env.ALGOD_API_URL || 'https://testnet-api.algonode.cloud';

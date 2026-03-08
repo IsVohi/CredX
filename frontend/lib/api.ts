@@ -69,7 +69,10 @@ async function request<T>(
         const result = await response.json();
 
         if (!response.ok) {
-            return { error: result.error || "An unexpected error occurred." };
+            return {
+                error: result.error || "An unexpected error occurred.",
+                data: response.status === 422 ? result : undefined
+            };
         }
 
         return { data: result as T };

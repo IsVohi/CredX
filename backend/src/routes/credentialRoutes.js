@@ -28,4 +28,13 @@ router.get('/:assetId/verify', credentialController.verifyCredential);
 // Public lookup of all credentials for a specific student
 router.get('/student/:address', credentialController.getPublicStudentCredentialsByAddress);
 
+// GET /credentials/:assetId/voice (Legacy)
+router.get('/:assetId/voice', credentialController.getVoiceSummary);
+
+// GET /credentials/:assetId/audio (New Alignment)
+router.get('/:assetId/audio', credentialController.getVoiceSummary);
+
+// GET /credentials/:assetId/insights
+router.get('/:assetId/insights', credentialController.getCredentialInsights);
+
 module.exports = router;

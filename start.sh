@@ -16,8 +16,7 @@ echo "Checking for existing processes on ports 3000 and 5001..."
 kill_port 3000
 kill_port 5001
 
-echo "Copying environment variables to frontend..."
-cp .env frontend/.env.local
+kill_port 5001
 
 echo "Starting Backend API (Port 5001)..."
 cd backend

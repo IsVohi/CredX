@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CredX - Decentralized Academic Credential Verification",
   description: "Instant, tamper-proof verification of academic credentials backed by the Algorand blockchain.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 // IPFS configuration targeting Pinata API
 const ipfsApiKey = process.env.IPFS_API_KEY || '';
 const ipfsApiSecret = process.env.IPFS_API_SECRET || '';

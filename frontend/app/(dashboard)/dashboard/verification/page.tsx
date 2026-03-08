@@ -16,6 +16,10 @@ import {
     Calendar,
     GraduationCap,
     Download,
+    Volume2,
+    Play,
+    Pause,
+    Sparkles
 } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -28,6 +32,34 @@ function VerificationContent() {
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+
+    const handlePlayAudio = async (id: string) => {
+        if (isPlaying && audio) {
+            audio.pause();
+            setIsPlaying(false);
+            return;
+        }
+
+        setIsPlaying(true);
+        try {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+            const audioUrl = `${baseUrl}/credentials/${id}/audio`;
+            const newAudio = new Audio(audioUrl);
+            newAudio.onended = () => setIsPlaying(false);
+            newAudio.onerror = () => {
+                setIsPlaying(false);
+                const msg = new SpeechSynthesisUtterance();
+                msg.text = `Verified credential for ${result.details.metadata?.name}. Issued by ${result.details.metadata?.properties?.issuer_name}.`;
+                window.speechSynthesis.speak(msg);
+            };
+            setAudio(newAudio);
+            newAudio.play();
+        } catch (err) {
+            setIsPlaying(false);
+        }
+    };
 
     const parseScannedValue = (value: string): string => {
         const trimmed = value.trim();
@@ -162,43 +194,94 @@ function VerificationContent() {
                                 </h2>
                                 <p className="text-xs text-slate-600 font-medium">Verified by Algorand Consensus</p>
                             </div>
+                            <button
+                                onClick={() => handlePlayAudio(assetId)}
+                                className={`ml-auto flex items-center gap-2 px-4 h-10 rounded-xl font-bold transition-all ${isPlaying
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-white text-slate-900 border border-slate-200 hover:border-primary/40"
+                                    }`}
+                            >
+                                {isPlaying ? (
+                                    <Pause size={16} className="animate-pulse" />
+                                ) : (
+                                    <Volume2 size={16} className="text-primary" />
+                                )}
+                                {isPlaying ? "Listening..." : "Listen"}
+                            </button>
                         </div>
 
                         {/* Credential Details */}
+                        {/* Credential Details */}
                         {result.status === 'VALID' && (
-                            <div className="glass p-8 rounded-[2.5rem] bg-white border border-slate-200/60 shadow-sm relative overflow-hidden text-sm">
-                                <div className="absolute top-0 right-0 p-6 opacity-10">
-                                    <GraduationCap size={120} />
-                                </div>
-
-                                <div className="mb-8 relative z-10">
-                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                                        {result.details.metadata?.name || "Official Credential"}
-                                    </h3>
-                                    <p className="text-slate-500 max-w-lg">
-                                        {result.details.metadata?.description}
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pt-6 border-t border-slate-50 relative z-10">
-                                    <div>
-                                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1 flex items-center gap-2">
-                                            <Building2 size={12} /> Issuer
-                                        </div>
-                                        <p className="font-bold text-slate-900">{result.details.metadata?.properties?.issuer_name || "N/A"}</p>
-                                        <p className="text-[10px] font-mono text-slate-400 truncate mt-1">{result.details.creator}</p>
+                            <>
+                                <div className="glass p-8 rounded-[2.5rem] bg-white border border-slate-200/60 shadow-sm relative overflow-hidden text-sm">
+                                    <div className="absolute top-0 right-0 p-6 opacity-10">
+                                        <img src="/favicon.png" alt="Logo" className="w-24 h-24 object-contain grayscale" />
                                     </div>
-                                    <div>
-                                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1 flex items-center gap-2">
-                                            <Calendar size={12} /> Issued On
-                                        </div>
-                                        <p className="font-bold text-slate-900">
-                                            {result.details.metadata?.properties?.issued_timestamp
-                                                ? new Date(result.details.metadata.properties.issued_timestamp).toLocaleDateString()
-                                                : "N/A"}
+
+                                    <div className="mb-8 relative z-10">
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                                            {result.details.metadata?.name || "Official Credential"}
+                                        </h3>
+                                        <p className="text-slate-500 max-w-lg">
+                                            {result.details.metadata?.description}
                                         </p>
                                     </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pt-6 border-t border-slate-50 relative z-10">
+                                        <div>
+                                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1 flex items-center gap-2">
+                                                <Building2 size={12} /> Issuer
+                                            </div>
+                                            <p className="font-bold text-slate-900">{result.details.metadata?.properties?.issuer_name || "N/A"}</p>
+                                            <p className="text-[10px] font-mono text-slate-400 truncate mt-1">{result.details.creator}</p>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1 flex items-center gap-2">
+                                                <Calendar size={12} /> Issued On
+                                            </div>
+                                            <p className="font-bold text-slate-900">
+                                                {result.details.metadata?.properties?.issued_timestamp
+                                                    ? new Date(result.details.metadata.properties.issued_timestamp).toLocaleDateString()
+                                                    : "N/A"}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* --- AI INSIGHTS SECTION --- */}
+                                {result.aiInsights && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="mb-8 p-5 rounded-2xl bg-slate-900 text-white relative overflow-hidden"
+                                    >
+                                        <div className="absolute top-0 right-0 p-4 opacity-5">
+                                            <Sparkles size={80} className="text-primary" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-widest mb-4">
+                                                <Sparkles size={12} /> AI Insight Analysis
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Authenticity</div>
+                                                    <div className="text-lg font-bold font-mono text-primary">{result.aiInsights.confidenceScore}%</div>
+                                                </div>
+                                                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Category</div>
+                                                    <div className="text-sm font-bold truncate">{result.aiInsights.category}</div>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-[11px] text-slate-300 leading-relaxed italic p-3 rounded-xl bg-primary/5 border border-primary/10">
+                                                "{result.aiInsights.analysisSummary}"
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                                {/* --------------------------- */}
 
                                 <div className="flex gap-4 relative z-10">
                                     <a
@@ -218,11 +301,11 @@ function VerificationContent() {
                                         Pera Explorer
                                     </a>
                                 </div>
-                            </div>
+                            </>
                         )}
                     </motion.div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {showScanner && (
                 <QRScanner
@@ -235,7 +318,7 @@ function VerificationContent() {
                     onClose={() => setShowScanner(false)}
                 />
             )}
-        </div>
+        </div >
     );
 }
 

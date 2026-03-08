@@ -53,9 +53,7 @@ export default function Sidebar() {
         <div className="w-64 h-full border-r border-slate-200 bg-white/50 backdrop-blur-xl flex flex-col p-4">
             <div className="flex items-center gap-2 px-2 mb-10">
                 <Link href="/" className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
-                        C
-                    </div>
+                    <img src="/favicon.png" alt="CredX Logo" className="w-10 h-10 object-contain" />
                     <span className="font-bold text-xl tracking-tight text-slate-900">CredX</span>
                 </Link>
             </div>
