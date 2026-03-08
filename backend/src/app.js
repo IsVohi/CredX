@@ -22,7 +22,15 @@ app.use('/api/institutions', issuerRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/auth', authRoutes);
 
-// Health check
+// Health check & Welcome
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'OK', message: 'CredX Backend API is running' });
+});
+
+app.get('/api', (req, res) => {
+    res.status(200).json({ status: 'OK', message: 'CredX API v1' });
+});
+
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', message: 'CredX Backend Running' });
 });
