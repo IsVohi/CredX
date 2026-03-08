@@ -33,7 +33,12 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal Server Error' });
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`CredX server listening on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5001;
+
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`CredX server listening on port ${PORT}`);
+    });
+}
+
+module.exports = app;
